@@ -4,15 +4,15 @@ Triton is a Python-based language and compiler that transforms high-level Python
 
 A typical Triton program consists of Triton kernels (functions) and a host program that calls the kernels. Triton kernels are executed in parallel by many threads on the GPU.
 
-We'll be testing some code in this tutorial, so make sure you have a Jupyter Notebook such as Google Colab.
+Before running the code in this tutorial, make sure you have a Jupyter Notebook environment with a GPU runtime (e.g., Google Colab with a GPU accelerator selected under **Runtime > Change runtime type**). All code in this series requires CUDA-enabled PyTorch and will fail on a CPU-only runtime.
 
 ## Vector Addition on the GPU
 
-The only way to learn Triton is by writing programs in it and testing them. The structure of a Triton program consists of two parts: a host part and a device part:
-- The device part consists of Triton kernels that look like Python functions that are compiled and executed on the GPU.
-- The host part handles tasks like loading data, launching kernels, and collecting results from the GPU.
+The only way to learn Triton is by writing programs in it and testing them. The structure of a Triton program consists of two parts: a host part and a device part.
 
-For example, the following Triton kernel executes vector addition on the GPU:
+The **device part** consists of Triton kernels — Python functions that are compiled and executed on the GPU. The **host part** handles tasks like loading data, launching kernels, and collecting results from the GPU.
+
+For example, the following Triton kernel adds a scalar value to every element of a vector on the GPU:
 
 ```python
 import torch
@@ -36,7 +36,7 @@ def add_kernel(
     tl.store(output_ptr + offsets, output, mask=mask)
 ```
 
-And the following code does the following vector addition:
+Note that this kernel adds a scalar (`increment_value`) to each element of the input vector `x`, rather than adding two vectors together. The following host code launches it to add 10 to each element:
 
 ```python
 BLOCK_SIZE = 1
@@ -44,6 +44,8 @@ data = [1, 2, 3, 4, 5]
 x = torch.tensor(data, device='cuda')
 output = torch.empty_like(x)
 N = len(data)
+# The grid lambda computes the number of blocks needed at launch time.
+# triton.cdiv(N, BLOCK_SIZE) is ceiling division: (N + BLOCK_SIZE - 1) // BLOCK_SIZE
 grid = lambda meta: (triton.cdiv(N, meta['BLOCK_SIZE']), )
 add_kernel[grid](x, 10, output, N, BLOCK_SIZE)
 
@@ -60,11 +62,12 @@ x + 10 = tensor([11, 12, 13, 14, 15], device='cuda:0')
 
 ## Testing Triton Tutorials
 
-Before testing the Triton tutorials, download them:
-- Open the tutorials page.
-- Scroll to the bottom of the page.
-- Click Download all examples in Python source code: tutorials_python.zip.
-- Extract the tutorials:
+Before testing the Triton tutorials, download them from the official Triton documentation page:
+
+1. Open the tutorials page at [https://triton-lang.org/main/getting-started/tutorials/](https://triton-lang.org/main/getting-started/tutorials/)
+2. Scroll to the bottom of the page.
+3. Click **Download all examples in Python source code: tutorials_python.zip**.
+4. Extract the tutorials:
 
 ```bash
 $ cd ~
@@ -77,19 +80,11 @@ $ ls
 ...
 ```
 
-After downloading the Triton tutorials, test them in your notebook. For example, to test 01-vector-add.py, do the following:
-- Open an existing notebook or create a new notebook.
-- If it is not connected to a server, connect it to an on-demand GPU devserver.
-- Make a copy of ~/tutorials_python/01-vector-add.py and paste it to a cell in your notebook.
-- Run 01-vector-add.py. If you get this error (see the caveats):
+After downloading the Triton tutorials, you can run them in a Jupyter notebook or as standalone Python scripts. For example, to test `01-vector-add.py`:
 
-Make this change in 01-vector-add.py:
-
-```python
-DEVICE: str = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-```
-
-Re-run 01-vector-add.py.
+1. Open an existing notebook or create a new one with a GPU runtime.
+2. Copy the contents of `~/tutorials_python/01-vector-add.py` and paste it into a cell.
+3. Run the cell. If you encounter a CUDA error, verify that your environment has a GPU runtime enabled.
 
 ## Conclusion
 

@@ -1,22 +1,30 @@
-# Introduction to Triton and GPU Fundamentals for Kernel Programming
+# Introduction to GPU Fundamentals for Kernel Programming
 
 ## Introduction
 
-This tutorial provides an updated introduction to Triton, a powerful language and compiler for programming GPU kernels. Triton offers direct control over GPU memory hierarchies, enabling developers to write highly performant kernels by bridging the gap between GPU hardware and algorithm design.
+This tutorial provides an introduction to GPU architecture concepts that are directly relevant to writing Triton kernels. Understanding how a GPU is organized — and where data lives at each stage of computation — is essential for writing kernels that are both correct and performant.
 
-## What is Triton?
+## GPU Memory Hierarchy
 
-Triton is both a programming language designed specifically for writing GPU kernels and a compiler that translates Triton code into efficient GPU machine instructions. The main advantage of Triton is that it gives you direct control over two key types of GPU memory: SRAM (shared memory or on-chip memory), which is very fast and low-latency and is shared among threads within a streaming multiprocessor (SM), and HBM (high bandwidth memory or global GPU memory), which is larger but slower and accessible by all SMs. This control allows you to optimize data movement and computation, which is essential for achieving high performance on GPUs.
+A modern GPU has two main types of memory that Triton programmers need to understand:
 
-Triton is both a programming language and a compiler designed specifically for writing high-performance GPU kernels. It provides a higher-level, Pythonic interface that abstracts away many of the low-level details of GPU programming (such as explicit thread/block management and manual shared memory allocation) while still allowing users to optimize data movement and computation. Triton kernels operate on global GPU memory (HBM), and the language/compiler are designed to generate efficient memory access patterns. While Triton does not expose explicit control over shared memory (SRAM) in the same way as CUDA, it enables users to write custom GPU kernels that can approach the performance of hand-written CUDA code, making it easier to optimize for modern deep learning workloads.
+**HBM (High Bandwidth Memory)**, also called global memory, is the large off-chip memory pool on the GPU. When you call `.cuda()` on a PyTorch tensor, the data is stored in HBM. HBM is accessible by all streaming multiprocessors (SMs) on the GPU, but accessing it is relatively slow compared to on-chip memory.
 
-## GPU Fundamentals Relevant to Triton
+**SRAM (Static RAM)**, also called shared memory or on-chip memory, is a small, very fast memory that lives on each SM. It is shared by all threads running on that SM. Because it is on-chip, reads and writes to SRAM are much faster than to HBM. Efficient GPU kernels are often designed to load data from HBM into SRAM, operate on it there, and write results back — minimizing slow HBM traffic.
 
-A modern GPU is composed of several key components. Streaming Multiprocessors (SMs) are the core compute units of the GPU where actual processing happens. For example, the NVIDIA A100 GPU has 108 SMs. Global memory (HBM) is a large memory pool (such as 40GB or 80GB) where data and models reside when moved to the GPU, for example via PyTorch's `.cuda()` method. Shared memory (SRAM) is fast, on-chip memory shared by all threads within an SM, and is used for efficient data sharing and computation. Triton kernels execute on the SMs, giving you direct control over shared memory and compute cores, whereas PyTorch primarily operates on global memory.
+## Streaming Multiprocessors (SMs)
 
-## Key Takeaways on GPU Programming with Triton
+SMs are the core compute units of the GPU where actual processing happens. For example, the NVIDIA A100 GPU has 108 SMs. When you launch a Triton kernel, the GPU scheduler distributes your kernel instances (programs) across the available SMs.
 
-Triton operates on-chip, controlling SMs and shared memory directly, while PyTorch primarily operates on global memory. The memory bandwidth bottleneck is the primary performance limiter on GPUs, not compute FLOPS. Triton enables intelligent data movement and kernel design to hide latency and maximize throughput.
+## How Triton Relates to This
+
+Triton kernels operate on data in HBM (global memory). Triton does not expose explicit shared memory management in the same way CUDA does — instead, the Triton compiler is responsible for automatically managing on-chip memory to optimize data movement. This is one of Triton's key advantages: you write the algorithm, and the compiler handles the low-level memory placement.
+
+PyTorch, by contrast, primarily orchestrates operations at the HBM level, calling into pre-built library kernels (cuBLAS, cuDNN, etc.) that internally manage shared memory. Triton gives you the ability to write those inner kernels yourself.
+
+## Key Takeaways
+
+The memory bandwidth bottleneck — how fast data can be moved between HBM and the SMs — is typically the primary performance limiter on GPUs for operations like softmax and attention, not raw arithmetic throughput. Writing efficient Triton kernels means designing your data access patterns to maximize bandwidth utilization and minimize redundant HBM reads and writes.
 
 ---
 
