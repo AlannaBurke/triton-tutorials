@@ -1,0 +1,50 @@
+site_name: Triton Tutorial Series
+site_description: A hands-on guide to writing custom GPU kernels with Triton
+repo_url: https://github.com/AlannaBurke/triton-tutorials
+repo_name: AlannaBurke/triton-tutorials
+
+theme:
+  name: material
+  features:
+    - navigation.sections
+    - navigation.expand
+    - navigation.top
+    - toc.integrate
+    - content.code.copy
+  palette:
+    - scheme: default
+      primary: deep purple
+      accent: purple
+
+nav:
+  - Home: index.md
+  - Basics:
+    - Introduction to Triton: basics/intro-to-triton.md
+    - Getting Started: basics/getting-started.md
+    - Triton vs. CUDA: basics/triton-vs-cuda.md
+    - GPU Fundamentals: basics/gpu-fundamentals.md
+  - First Kernel — Vector Addition:
+    - Overview: first-kernel/index.md
+    - Part 1 — Parallel Programming: first-kernel/part1-parallel-programming.md
+    - Part 2 — Writing a Kernel: first-kernel/part2-writing-a-kernel.md
+    - Part 3 — Verifying Numerics: first-kernel/part3-verifying-numerics.md
+    - Part 4 — Benchmarking: first-kernel/part4-benchmarking.md
+  - Softmax:
+    - Overview: softmax/index.md
+    - Part 1 — Softmax in PyTorch: softmax/part1-softmax-in-pytorch.md
+    - Part 2 — Softmax in Triton: softmax/part2-softmax-in-triton.md
+  - Advanced:
+    - Tiled Matrix Multiplication: advanced/tiled-matmul.md
+    - Advanced Topics: advanced/advanced-topics.md
+  - Resources: resources.md
+
+markdown_extensions:
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.superfences
+  - pymdownx.tabbed:
+      alternate_style: true
+  - admonition
+  - tables
+  - toc:
+      permalink: true
