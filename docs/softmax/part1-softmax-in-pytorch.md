@@ -1,7 +1,11 @@
-# Part 1: Basic Softmax and Online Softmax in PyTorch
+# Part 1: Basic and Online Softmax in PyTorch
 
 *This tutorial is derived from this video by SOTA Deep Learning Tutorials:*
 *[Intro to Triton: Coding Softmax in PyTorch](https://www.youtube.com/watch?v=your-link-here)*
+
+## Introduction
+
+In this tutorial, we will implement the softmax function in PyTorch, starting with a naive implementation and then improving it with the online softmax algorithm. Understanding both approaches is essential before implementing softmax in Triton, and the online softmax algorithm is particularly important because it is the key algorithmic insight behind FlashAttention.
 
 ## 1. Environment Setup
 
@@ -50,6 +54,7 @@ assert torch.allclose(softmax_naive, softmax_ref, atol=1e-6), "Mismatch!"
 ```
 
 This implementation requires multiple passes over each row of data:
+
 1. Find the maximum value (for numerical stability) — 1st pass.
 2. Subtract the max and exponentiate — 2nd pass.
 3. Sum the exponentiated values — 3rd pass.
@@ -59,7 +64,7 @@ Each pass reads the entire row from HBM, which is costly for large tensors.
 
 ## 5. Online Softmax: Reducing Memory Passes
 
-Online softmax reduces the number of passes to just two by maintaining running statistics—the current row maximum and the running sum of exponentials—as it processes each element. When the running maximum is updated, the accumulated sum is rescaled to remain consistent.
+Online softmax reduces the number of passes to just two by maintaining running statistics — the current row maximum and the running sum of exponentials — as it processes each element. When the running maximum is updated, the accumulated sum is rescaled to remain consistent.
 
 ```python
 def online_softmax(x: torch.Tensor) -> torch.Tensor:
@@ -88,13 +93,17 @@ assert torch.allclose(softmax_online, softmax_ref.cpu(), atol=1e-6), "Mismatch!"
 print("Online softmax matches PyTorch softmax.")
 ```
 
-## 6. Performance Comparison
+## 6. Why Online Softmax Matters: The Connection to FlashAttention
+
+Online softmax is not just a micro-optimization — it is the key algorithmic step that makes [FlashAttention](https://arxiv.org/abs/2205.14135) possible. FlashAttention computes the attention mechanism in tiles, processing small blocks of the query-key-value matrices at a time rather than materializing the full attention matrix. To do this correctly, it needs to compute softmax over a sequence of partial results, which is exactly what the online softmax algorithm enables. Without it, tiled attention computation would require a separate pass to find the global maximum before computing the softmax, negating the memory savings.
+
+## 7. Performance Comparison
 
 In practice, the online softmax is significantly faster than the naive version for large tensors, because it reduces the number of passes over each row from four to two. The performance gain grows with the size of the input.
 
 ## Conclusion
 
-In this tutorial, you implemented both naive and online softmax in PyTorch and verified their correctness.
+In this tutorial, you implemented both naive and online softmax in PyTorch and verified their correctness. You also learned why online softmax is a foundational algorithm for high-performance deep learning, particularly as the basis for FlashAttention. With this understanding, you are ready to implement softmax as a Triton kernel in the next tutorial.
 
 ---
 
