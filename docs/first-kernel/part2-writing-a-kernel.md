@@ -65,7 +65,40 @@ def kernel_vector(a_ptr, b_ptr, out_ptr, num_elements, block_size: tl.constexpr)
     tl.store(out_ptr + thread_offsets, result, mask=mask)
 ```
 
-## Step 4: Debugging Tips
+## Step 4: Kernel Hygiene and Preventing Pitfalls
+
+Writing correct and performant GPU kernels requires a different mindset than traditional CPU programming. Here are some tips to help you avoid common pitfalls and write clean, robust kernels from the start.
+
+### 1. Always Use Masking for Loads and Stores
+
+This is the most common source of correctness bugs. If your input size is not a perfect multiple of your `BLOCK_SIZE`, your kernel will attempt to read or write out of bounds unless you use a mask. Always apply a mask to both `tl.load` and `tl.store` to prevent memory corruption and non-deterministic errors.
+
+```python
+# GOOD: Mask is applied to both load and store
+mask = thread_offsets < num_elements
+a_vals = tl.load(a_ptr + thread_offsets, mask=mask)
+# ...
+tl.store(out_ptr + thread_offsets, result, mask=mask)
+```
+
+### 2. Be Careful with Pointer Arithmetic
+
+In Triton, you work with raw memory pointers. A simple mistake in pointer arithmetic can cause you to read from or write to the wrong memory location, leading to silent data corruption. When working with 2D tensors, always double-check that you are using the correct stride for each dimension.
+
+```python
+# GOOD: Correctly calculates the start of the row using stride
+input_row_ptr = input_ptr + row_idx * input_stride
+```
+
+### 3. Use `tl.constexpr` for Tunable Parameters
+
+Marking parameters like `BLOCK_SIZE` as `tl.constexpr` (compile-time constant) allows the Triton compiler to perform significant optimizations, such as loop unrolling and instruction reordering. It also makes your kernel more readable by clearly separating data-dependent values from tunable, static parameters.
+
+### 4. Start with a Simple, Naive Implementation
+
+Before writing a complex, highly-optimized kernel, start with the simplest possible implementation that is easy to understand and verify. Once you have a correct baseline, you can incrementally add optimizations and benchmark at each step to ensure you are not introducing correctness bugs.
+
+## Step 5: Debugging Tips
 
 Triton provides `tl.device_print` for debugging inside kernels. It does not support formatted strings, but can print scalar values such as the current program ID:
 
