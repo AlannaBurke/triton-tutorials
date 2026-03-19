@@ -4,6 +4,6 @@
 
 ## Coming Soon
 
-- TMA
+- TMA (Tensor Memory Accelerator)
 - Warp Specialization
 - Coop Matmul in Triton

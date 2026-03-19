@@ -8,3 +8,5 @@
 - Part 2: Flash Attention 2: Forward Kernel
 - Part 3: Flash Attention 2: Backward Kernel
 - Part 4: Benchmarking / Tuning
+
+> **Note:** It is recommended to complete the [Advanced Topics](advanced-topics.md) tutorials (TMA, Warp Specialization, Coop Matmul) before starting the Flash Attention series, as those tutorials introduce hardware concepts that are used extensively in Flash Attention.
