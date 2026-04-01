@@ -5,7 +5,7 @@
 
 ## Introduction
 
-In this tutorial, we will explore how to write a vector addition kernel using Triton, a language and compiler designed for writing efficient GPU code. The tutorial is divided into two parts. First, we will cover the mental model shift required to move from traditional serial programming to parallel programming. Understanding this shift is crucial for effectively leveraging GPU architectures. Then, we will dive into the actual coding of the Triton kernel, illustrating how to implement vector addition in a parallelized manner.
+In this tutorial, we will explore how to write a vector addition kernel using Triton, a language and compiler designed for writing efficient GPU code. We begin with the mental model shift required to move from traditional serial programming to parallel programming. Understanding this shift is crucial for effectively leveraging GPU architectures.
 
 ## Mental Model Shift: From Serial to Parallel Programming
 
@@ -27,15 +27,17 @@ print(C)  # Output: [8, 8, 8, 8, 8, 8, 8]
 
 ### Parallel Approach with Triton
 
-Triton introduces a different paradigm by leveraging parallelism on the GPU. Instead of processing elements sequentially, we divide the workload across many threads organized into blocks and grids. Each thread operates independently on a subset of the data.
+Triton introduces a different paradigm by leveraging parallelism on the GPU. Instead of processing elements sequentially, we divide the workload across many independent **program instances** organized into a grid. Each program instance operates on a contiguous block of the data.
 
-For example, if we choose a block size of 2, each block will have two threads. For our problem of seven elements, we create a grid of four blocks (since 4 blocks × 2 threads = 8 threads, which covers all 7 elements plus one extra). Each thread in a block processes one element of the vectors simultaneously.
+For example, if we choose a block size of 2, each program instance processes two elements. For our problem of seven elements, we create a grid of four program instances (4 × 2 = 8 slots, which covers all 7 elements plus one extra). Each instance runs independently and simultaneously on the GPU.
+
+> **Note:** In Triton, `tl.program_id(axis=0)` returns the **block ID** of the current program instance — it identifies which block of data this instance is responsible for, not an individual thread ID.
 
 ## Handling Edge Cases with Masking
 
-A key challenge arises when the total number of elements is not a multiple of the block size. In our example, the last block has two threads, but only one element remains to be processed. The second thread in the last block has no valid data to work on.
+A key challenge arises when the total number of elements is not a multiple of the block size. In our example, the last program instance covers indices 6 and 7, but only index 6 has valid data. The thread handling index 7 has no valid data to work on.
 
-To handle this safely, we use masking. Each thread checks if its assigned index is within the valid range of elements. Threads with indices outside the valid range become inert and do not perform any load, compute, or store operations. Proper masking prevents out-of-bounds memory access, which would otherwise cause program crashes.
+To handle this safely, we use **masking**. Each program instance checks whether its assigned indices are within the valid range. Indices outside the valid range are masked out, preventing out-of-bounds memory access. Proper masking is essential — without it, the kernel would read or write to arbitrary memory addresses.
 
 ## Complete Example
 
@@ -49,7 +51,7 @@ def vector_add_kernel(
     A_ptr, B_ptr, C_ptr, N,
     BLOCK_SIZE: tl.constexpr
 ):
-    pid = tl.program_id(0)  # Each block has a unique program ID
+    pid = tl.program_id(0)  # Each program instance has a unique block ID
     block_start = pid * BLOCK_SIZE
     offsets = block_start + tl.arange(0, BLOCK_SIZE)
     mask = offsets < N  # Mask to avoid out-of-bounds
@@ -63,7 +65,8 @@ def triton_vector_add(A, B):
     N = A.numel()
     BLOCK_SIZE = 128
     C = torch.empty_like(A)
-    grid = (N + BLOCK_SIZE - 1) // BLOCK_SIZE
+    # Grid must be a tuple; the trailing comma makes (expr,) a 1-element tuple
+    grid = ((N + BLOCK_SIZE - 1) // BLOCK_SIZE,)
     vector_add_kernel[grid](A, B, C, N, BLOCK_SIZE)
     return C
 
@@ -75,10 +78,11 @@ print(C.cpu().tolist())  # Output: [8.0, 8.0, 8.0, 8.0, 8.0, 8.0, 8.0]
 ```
 
 Key points in the code:
-- `tl.program_id(0)` gets a unique ID in the grid.
-- `offsets` computes the indices this block's threads will process.
-- `mask` ensures threads do not access out-of-bounds memory.
-- The kernel loads, adds, and stores elements in parallel.
+
+- `tl.program_id(0)` returns the unique block ID for this program instance.
+- `offsets` computes the element indices this instance will process.
+- `mask` ensures no out-of-bounds memory access occurs.
+- The kernel loads, adds, and stores elements in parallel across all instances.
 
 ## Conclusion
 

@@ -10,10 +10,11 @@ In this tutorial, we'll walk through implementing a custom softmax kernel in Tri
 ## 1. Understanding Triton Kernels and Host Programs
 
 When working with Triton, you typically write two components:
-- The Kernel: The function that runs on the GPU, processing data in parallel.
-- The Host Program: The Python code that sets up meta-information (like block size and grid shape), allocates memory, and launches the kernel.
 
-## 2. Setting Up the Host Program
+- **The Kernel:** The function that runs on the GPU, processing data in parallel.
+- **The Host Program:** The Python code that sets up meta-information (like block size and grid shape), allocates memory, and launches the kernel.
+
+## 2. The Softmax Kernel and Host Program
 
 ```python
 import torch
@@ -66,21 +67,19 @@ def triton_softmax(x):
 ## 3. Key Implementation Details
 
 **Memory and Pointer Arithmetic:**
-Tensors in memory are 1D arrays; strides are used to move between rows. The kernel receives pointers to the input and output data, and uses pointer arithmetic to access the correct row and column. Masking ensures we only read/write valid data when the number of columns is not a power of two.
+Tensors in memory are 1D arrays; strides are used to navigate between rows. The kernel receives pointers to the input and output data, and uses pointer arithmetic (`row_idx * stride`) to locate the correct row. Masking ensures we only read/write valid data when the number of columns is not a power of two.
 
 **Parallelization:**
-We launch one kernel instance per row (`grid = (n_rows,)`). Each kernel instance processes a full row, with the BLOCK_SIZE set to the next power of two greater than or equal to the number of columns.
+We launch one kernel instance per row (`grid = (n_rows,)`). Each instance processes a full row independently, with `BLOCK_SIZE` set to the next power of two greater than or equal to the number of columns.
 
 **Softmax Computation:**
-For numerical stability, we subtract the row max before exponentiating. We sum the exponentiated values to get the denominator, and write the result back to the output buffer using the same mask.
+For numerical stability, we subtract the row maximum before exponentiating (the same technique as naive softmax). We then sum the exponentiated values to get the denominator and divide.
 
-## 4. Debugging and Common Pitfalls
+## 4. Debugging: A Common Pointer Arithmetic Pitfall
 
-Pointer arithmetic is error-prone. A common mistake is to incorrectly calculate the output pointer, leading to overwriting the same row multiple times. Always ensure that:
-- The output pointer is offset by both the row index (via `output_stride`) and the column offset.
-- Masking is applied consistently when both reading and writing.
+Pointer arithmetic is error-prone. A common mistake is to compute the output row pointer incorrectly — for example, reusing the input row pointer for the output, or forgetting to multiply by `output_stride`. This causes all rows to be written to the same location, producing incorrect results that can be hard to diagnose.
 
-If you see duplicated or inverted rows in your output, double-check your pointer calculations.
+Always verify that your output pointer is computed as `output_ptr + row_idx * output_stride`, and that masking is applied consistently to both `tl.load` and `tl.store`.
 
 ## 5. Numerical Verification and Benchmarking
 
@@ -117,16 +116,9 @@ for n_cols in sizes:
     print(f"Cols: {n_cols} | Triton: {triton_time:.4f}s | PyTorch: {torch_time:.4f}s | Naive: {naive_time:.4f}s")
 ```
 
-## 6. Visualizing Results
-
-Plotting the throughput (e.g., GB/s) for each implementation across tensor sizes can help you see where Triton shines. Typically, you'll see:
-- Triton: Outperforms naive and matches or exceeds PyTorch for large tensors.
-- PyTorch: Fast for small tensors, but may decline as size increases.
-- Naive: Significantly slower than both.
-
 ## Conclusion
 
-In this tutorial, you learned how to write and launch a custom softmax kernel in Triton, verify its numerical correctness, and benchmark its performance.
+In this tutorial, you learned how to write and launch a custom softmax kernel in Triton, verify its numerical correctness, and benchmark its performance against PyTorch and a naive implementation.
 
 ---
 

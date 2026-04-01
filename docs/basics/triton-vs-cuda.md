@@ -1,18 +1,18 @@
 # Triton vs. CUDA
 
-Triton is an open-source, Python-based programming language and compiler designed for writing high-performance custom Deep Neural Networks (DNNs) compute kernels, particularly targeting NVIDIA GPUs. Compute Device Unified Architecture (CUDA), on the other hand, is a parallel computing platform and programming model developed by NVIDIA, which allows developers to leverage the power of NVIDIA GPUs for general-purpose computing. Triton is often preferred over CUDA because it simplifies GPU programming for machine learning, particularly for Python developers, while still allowing for deep optimization.
+Triton is an open-source, Python-based programming language and compiler designed for writing high-performance custom GPU kernels, particularly for deep learning workloads. CUDA, on the other hand, is a parallel computing platform and programming model developed by NVIDIA that gives developers direct, low-level access to GPU hardware using C or C++.
 
-This guide compares the key differences between Triton and CUDA.
+This guide compares the key differences between Triton and CUDA. Note that the GPU programming landscape is evolving rapidly: NVIDIA has recently introduced new Python-based DSLs such as [CuTeDSL and CuTile](https://developer.nvidia.com/blog/nvidia-cutile-and-cutedsl-python-based-gpu-kernel-programming/) (available in CUDA 13.1+) that bring a more Pythonic interface to CUDA-level programming. These are worth watching as the ecosystem matures.
 
 ## Key Differences
 
 | Feature | Triton | CUDA |
 |---------|--------|------|
-| Programming language | Python language | C or C++ |
-| Target audience | Ideal for deep learning researchers and developers who want to write custom kernels for deep learning models without needing extensive CUDA expertise. | A more general-purpose platform for GPU programming, used in various fields, including deep learning, scientific computing, and game development. |
-| Performance | While Triton aims to simplify GPU programming, it may come with a slight performance penalty compared to highly optimized CUDA kernels. | Offers the potential for very high performance, especially when developers are deeply familiar with GPU architecture. |
+| Programming language | Python | C or C++ |
+| Target audience | Deep learning researchers and developers who want to write custom kernels without needing extensive CUDA expertise. | General-purpose GPU programming, used in deep learning, scientific computing, game development, and more. |
+| Performance | Aims to simplify GPU programming; may have a slight performance gap compared to the most highly optimized hand-written CUDA kernels, but is competitive for most workloads. | Offers the potential for very high performance, especially when developers are deeply familiar with GPU architecture. |
 | Programming model | Higher-level DSL focused on deep learning. Uses a single-level decomposition (blocks). | Low-level, general-purpose. Uses a two-level decomposition (threads and blocks). |
-| Learning curve | Lower: Employs a higher-level, more Pythonic approach. | Higher: Requires a deeper understanding of GPU architecture. |
+| Learning curve | Lower: employs a higher-level, more Pythonic approach. | Higher: requires a deeper understanding of GPU architecture. |
 
 ## Compiler Optimizations: Triton vs. CUDA
 

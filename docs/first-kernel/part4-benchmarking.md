@@ -1,6 +1,6 @@
 # Part 4: Benchmarking and Performance Tuning
 
-*This tutorial follows Part 3 of this series.*
+*This tutorial follows [Part 3](part3-verifying-numerics.md) of this series.*
 
 *This tutorial is derived from this video by SOTA Deep Learning Tutorials:*
 *[Triton Vector Addition Kernel, part 4: Benchmarking vs PyTorch and tuning](https://www.youtube.com/watch?v=your-link-here)*
@@ -25,6 +25,8 @@ providers = [
 ## Step 3: Running the Benchmark
 
 ```python
+import time
+
 def benchmark_addition(vector_size, provider, block_size=128, num_warps=4):
     A = torch.randn(vector_size, device='cuda', dtype=torch.float32)
     B = torch.randn(vector_size, device='cuda', dtype=torch.float32)
@@ -36,13 +38,18 @@ def benchmark_addition(vector_size, provider, block_size=128, num_warps=4):
         kernel_vector[(vector_size // block_size,)](A, B, output, vector_size, block_size, num_warps=num_warps)
     torch.cuda.synchronize()
     end = time.time()
-    gbps = (A.numel() * A.element_size() * 2) / (end - start) / 1e9
+    # GB/s: bytes read (2 inputs) + bytes written (1 output) per second
+    gbps = (A.numel() * A.element_size() * 3) / (end - start) / 1e9
     return gbps
 ```
 
 ## Step 4: Interpreting Initial Results
 
-After running the initial benchmarks, you will observe that Triton's performance largely matches PyTorch's across most tensor sizes. There may be a slight performance gap in the mid-range sizes, but at larger tensor sizes, Triton begins to match or exceed PyTorch.
+Vector addition is a **memory-bandwidth-bound** operation: for each element, we perform one addition but must load two values from HBM and store one result. The kernel's performance is therefore limited by how fast we can move data, not by arithmetic throughput.
+
+A useful reference point is the **peak memory bandwidth** of your GPU (e.g., ~2 TB/s on an H100, ~935 GB/s on an A100, ~900 GB/s on an A10). Comparing your measured GB/s to this peak tells you how efficiently your kernel is using the available bandwidth. Getting close to the hardware peak is the goal for bandwidth-bound kernels.
+
+After running the initial benchmarks, you will observe that Triton's performance largely matches PyTorch's across most tensor sizes. There may be a slight performance gap at mid-range sizes, but at larger tensor sizes, Triton begins to match or exceed PyTorch.
 
 ## Step 5: Performance Tuning — Adjusting Block Size
 
@@ -68,7 +75,7 @@ With the increased block size and number of warps, the benchmark shows that Trit
 
 ## Conclusion
 
-In this tutorial, you learned how to benchmark and tune a custom Triton vector addition kernel, comparing its performance to PyTorch and optimizing key parameters for maximum throughput.
+In this tutorial, you learned how to benchmark and tune a custom Triton vector addition kernel, comparing its performance to PyTorch and optimizing key parameters for maximum throughput. By setting up a flexible benchmarking framework, interpreting performance results in terms of memory bandwidth utilization, and tuning block size and warp count, you gained practical skills for developing high-performance GPU kernels.
 
 ---
 

@@ -1,20 +1,22 @@
 # Part 3: Verifying Numerical Fidelity
 
-*This tutorial follows Part 2 of this series.*
+*This tutorial follows [Part 2](part2-writing-a-kernel.md) of this series.*
 
 *This tutorial is derived from this video by SOTA Deep Learning Tutorials:*
 *[Triton Vector Addition Kernel, part 3: Verifying Numerical Accuracy](https://www.youtube.com/watch?v=your-link-here)*
 
 ## Introduction
 
-After implementing a Triton kernel, the next critical step is to verify that it produces correct results. This tutorial demonstrates how to validate that the Triton kernel produces results consistent with PyTorch's native operations. We will use PyTorch's `torch.allclose` API to compare outputs and ensure correctness. We will also set up a reproducible testing environment and discuss considerations for numerical tolerance.
+After implementing a Triton kernel, the next critical step is to verify that it produces correct results. This tutorial demonstrates how to validate that the Triton kernel produces results consistent with PyTorch's native operations, using `torch.allclose` to compare outputs and ensure correctness within a specified numerical tolerance.
 
 ## Step 1: Setting Up the Test Environment
 
 ```python
 import torch
-torch.manual_seed(0)  # Seed CPU and GPU RNGs for reproducibility
+torch.manual_seed(0)  # Seeds both CPU and GPU RNGs for reproducibility
 ```
+
+> **Note:** `torch.manual_seed(0)` seeds both the CPU and CUDA random number generators when a CUDA device is available, ensuring reproducible results across runs.
 
 ## Step 2: Creating Test Vectors
 
@@ -43,9 +45,7 @@ result_correct = torch.allclose(torch_result, triton_result, atol=1e-6, rtol=1e-
 print("Numerical fidelity correct:", result_correct)
 ```
 
-Notes on Tolerances:
-- The absolute tolerance (`atol`) and relative tolerance (`rtol`) may need adjustment depending on the operation and data.
-- For more complex operations, tighter tolerances may be needed to ensure correctness.
+The `atol` (absolute tolerance) and `rtol` (relative tolerance) parameters control how much deviation is acceptable. For simple floating-point addition, `atol=1e-6` is a reasonable threshold. For more complex operations involving many accumulations, you may need to loosen tolerances slightly.
 
 ## Step 6: Wrapping the Verification in a Function
 
@@ -67,10 +67,9 @@ if __name__ == "__main__":
 
 ## Troubleshooting Common Errors
 
-- Ensure that input tensors are on CUDA devices (`.is_cuda` property).
-- Use `torch.manual_seed` to seed both CPU and GPU RNGs for reproducibility.
-- When calling `.is_cuda`, use it as a property, not a method (i.e., no parentheses).
-- If results are incorrect, check that your mask is applied consistently to both `tl.load` and `tl.store`.
+- **`AttributeError: 'Tensor' object has no attribute 'is_cuda'`** — Use `tensor.is_cuda` as a property (no parentheses), not as a method call.
+- **Results don't match** — Check that your mask is applied consistently to both `tl.load` and `tl.store`. A missing mask on the store can cause garbage values to be written.
+- **Non-reproducible results** — Ensure `torch.manual_seed` is called before creating the test tensors.
 
 ## Conclusion
 
